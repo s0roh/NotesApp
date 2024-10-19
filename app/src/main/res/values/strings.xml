@@ -1,3 +1,14 @@
 <resources>
     <string name="app_name">Notes App</string>
+    <string name="nothing_found">Ничего не найдено</string>
+    <string name="place_for_notes">Место для заметок</string>
+    <string name="delete">Удалить</string>
+    <string name="search_notes">Поиск заметок</string>
+    <string name="clear_search">Очистить поиск</string>
+    <string name="text">Текст</string>
+    <string name="title">Название</string>
+    <string name="yes">Да</string>
+    <string name="no">Нет</string>
+    <string name="alert_dialog_text">Название или текст заметки не могут быть пустыми. Вы уверены, что хотите выйти без сохранения?</string>
+    <string name="alert_dialog_title">Отменить изменения?</string>
 </resources>

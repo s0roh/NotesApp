@@ -1,4 +1,4 @@
-package com.litovkin.notesapp.ui.theme
+package com.litovkin.notesapp.presentation.ui.theme
 
 import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle
