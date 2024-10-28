@@ -1,5 +1,6 @@
 package com.litovkin.notesapp.presentation.add_edit_note
 
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.litovkin.notesapp.domain.entity.InvalidNoteException
@@ -35,7 +36,8 @@ class AddEditNoteViewModel @Inject constructor(
                     currentNoteId = note.id
                     _screenState.value = _screenState.value.copy(
                         title = note.title,
-                        content = note.content
+                        content = note.content,
+                        imageUri = note.imageUri?.let { Uri.parse(it) } ?: Uri.EMPTY
                     )
                 }
             }
@@ -50,6 +52,10 @@ class AddEditNoteViewModel @Inject constructor(
         _screenState.value = _screenState.value.copy(content = newContent)
     }
 
+    fun onImageUriChange(newImageUri: Uri?) {
+        _screenState.value = _screenState.value.copy(imageUri = newImageUri ?: Uri.EMPTY)
+    }
+
     fun saveNote() {
         viewModelScope.launch {
             try {
@@ -57,7 +63,8 @@ class AddEditNoteViewModel @Inject constructor(
                     Note(
                         id = currentNoteId,
                         title = _screenState.value.title,
-                        content = _screenState.value.content
+                        content = _screenState.value.content,
+                        imageUri = _screenState.value.imageUri.toString()
                     )
                 )
                 _eventFlow.emit(UiEvent.SaveNote)
