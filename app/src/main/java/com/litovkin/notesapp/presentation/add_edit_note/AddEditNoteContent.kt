@@ -1,12 +1,10 @@
 package com.litovkin.notesapp.presentation.add_edit_note
 
 import android.Manifest
-import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
@@ -61,14 +59,12 @@ import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
-import androidx.core.content.FileProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil3.compose.AsyncImage
 import com.litovkin.notesapp.R
 import com.litovkin.notesapp.getApplicationComponent
 import kotlinx.coroutines.flow.collectLatest
-import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -82,10 +78,7 @@ fun AddEditNoteContent(
     val viewModel: AddEditNoteViewModel = viewModel(factory = component.getViewModelFactory())
     val screenState = viewModel.screenState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
-    val showDiscardDialog = remember { mutableStateOf(false) }
-
     var isMenuExpanded by remember { mutableStateOf(false) } // состояние для меню удаления изображения
-
     val context = LocalContext.current
     var tempImageUri by remember { mutableStateOf<Uri?>(null) }
 
@@ -111,7 +104,7 @@ fun AddEditNoteContent(
         contract = ActivityResultContracts.RequestPermission()
     ) { isGranted ->
         if (isGranted) {
-            launchCamera(context, cameraLauncher) { uri ->
+            viewModel.launchCamera(context, cameraLauncher) { uri ->
                 tempImageUri = uri
             }
         }
@@ -127,9 +120,10 @@ fun AddEditNoteContent(
         }
     }
 
-    if (showDiscardDialog.value) {
+    val currentShowDialog = screenState.value.showDiscardDialog
+    if (currentShowDialog) {
         AlertDialog(
-            onDismissRequest = { showDiscardDialog.value = false },
+            onDismissRequest = { viewModel.onDiscardDialogDismiss() },
             title = { Text(stringResource(R.string.alert_dialog_title)) },
             text = { Text(stringResource(R.string.alert_dialog_text)) },
             containerColor = MaterialTheme.colorScheme.background,
@@ -138,7 +132,7 @@ fun AddEditNoteContent(
             confirmButton = {
                 Button(
                     onClick = {
-                        showDiscardDialog.value = false
+                        viewModel.onDiscardDialogDismiss()
                         navController.popBackStack()
                     }
                 ) {
@@ -146,7 +140,7 @@ fun AddEditNoteContent(
                 }
             },
             dismissButton = {
-                Button(onClick = { showDiscardDialog.value = false }) {
+                Button(onClick = { viewModel.onDiscardDialogDismiss() }) {
                     Text(stringResource(R.string.no))
                 }
             }
@@ -188,7 +182,7 @@ fun AddEditNoteContent(
                     IconButton(
                         onClick = {
                             if (screenState.value.title.isBlank() || screenState.value.content.isBlank()) {
-                                showDiscardDialog.value = true
+                                viewModel.onDiscardDialogShow()
                             } else {
                                 viewModel.saveNote()
                             }
@@ -215,7 +209,7 @@ fun AddEditNoteContent(
                                     Manifest.permission.CAMERA
                                 ) == PackageManager.PERMISSION_GRANTED
                             ) {
-                                launchCamera(context, cameraLauncher) { uri ->
+                                viewModel.launchCamera(context, cameraLauncher) { uri ->
                                     tempImageUri = uri
                                 }
                             } else {
@@ -243,8 +237,8 @@ fun AddEditNoteContent(
                         modifier = Modifier
                             .fillMaxWidth()
                             .combinedClickable(
-                                onClick = { /* при обычном нажатии ничего не делаем */ },
-                                onLongClick = { isMenuExpanded = true } // открываем меню
+                                onClick = { },
+                                onLongClick = { isMenuExpanded = true }
                             )
                     )
                     DropdownMenu(
@@ -269,7 +263,7 @@ fun AddEditNoteContent(
                                 )
                             },
                             onClick = {
-                                viewModel.onImageUriChange(null) // удаление изображения
+                                viewModel.onImageUriChange(null)
                                 isMenuExpanded = false
                             }
                         )
@@ -278,6 +272,11 @@ fun AddEditNoteContent(
             }
             Spacer(modifier = Modifier.height(8.dp))
             OutlinedTextField(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(
+                        horizontal = 16.dp,
+                    ),
                 value = screenState.value.title,
                 onValueChange = { viewModel.onTitleChange(it) },
                 label = { Text(text = stringResource(R.string.title)) },
@@ -295,15 +294,14 @@ fun AddEditNoteContent(
                         handleColor = MaterialTheme.colorScheme.secondary,
                         backgroundColor = MaterialTheme.colorScheme.secondary.copy(alpha = 0.4f)
                     )
-                ),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(
-                        horizontal = 16.dp,
-                    )
+                )
             )
             Spacer(modifier = Modifier.height(8.dp))
             OutlinedTextField(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .imePadding()
+                    .padding(16.dp),
                 value = screenState.value.content, //
                 onValueChange = { viewModel.onContentChange(it) },
                 label = { Text(text = stringResource(R.string.text)) },
@@ -317,28 +315,8 @@ fun AddEditNoteContent(
                         handleColor = MaterialTheme.colorScheme.secondary,
                         backgroundColor = MaterialTheme.colorScheme.secondary.copy(alpha = 0.4f)
                     )
-                ),
-                modifier = Modifier
-                    .fillMaxSize()
-                    .imePadding()
-                    .padding(16.dp)
+                )
             )
         }
     }
 }
-
-private fun launchCamera(
-    context: Context,
-    cameraLauncher: ActivityResultLauncher<Uri>,
-    onImageUriCreated: (Uri) -> Unit
-) {
-    val tempFile = File.createTempFile("temp_image", ".jpg", context.cacheDir)
-    val uri = FileProvider.getUriForFile(
-        context,
-        "${context.packageName}.fileprovider",
-        tempFile
-    )
-    onImageUriCreated(uri)
-    cameraLauncher.launch(uri)
-}
-
